@@ -83,12 +83,38 @@ structure ElementaryLCAPresentation (G : Type*) [CommGroup G] [TopologicalSpace 
 attribute [instance] ElementaryLCAPresentation.finiteGroup ElementaryLCAPresentation.finiteFintype
   ElementaryLCAPresentation.finiteTopology ElementaryLCAPresentation.finiteDiscrete
 
+/-- The product of two groups of order two is not cyclic, since its exponent is two. -/
+private theorem zmodTwoProd_not_isAddCyclic : ¬ IsAddCyclic (ZMod 2 × ZMod 2) := by
+  intro h
+  have h1 : AddMonoid.exponent (ZMod 2 × ZMod 2) = Nat.card (ZMod 2 × ZMod 2) :=
+    IsAddCyclic.exponent_eq_card
+  have h2 : AddMonoid.exponent (ZMod 2 × ZMod 2) ∣ 2 :=
+    AddMonoid.exponent_dvd_of_forall_nsmul_eq_zero (by decide)
+  rw [h1, Nat.card_eq_fintype_card] at h2
+  revert h2
+  decide
+
 /-- Paper: (D.1.4.2), p. 757. The Klein four group admits an elementary presentation
 whose finite factor has order four and is noncyclic.
 Deviation: Sanity check for the finite abelian factor. -/
 theorem ElementaryLCAPresentation.exists_kleinFour :
     ∃ e : ElementaryLCAPresentation (Multiplicative (ZMod 2 × ZMod 2)),
-      Fintype.card e.finiteFactor = 4 ∧ ¬ IsAddCyclic e.finiteFactor := by sorry
+      Fintype.card e.finiteFactor = 4 ∧ ¬ IsAddCyclic e.finiteFactor := by
+  let a : (ZMod 2 × ZMod 2) ≃+ ElementaryLieGroup 0 0 0 (ZMod 2 × ZMod 2) :=
+    { toFun := fun x ↦ (0, 0, 0, x)
+      invFun := fun p ↦ p.2.2.2
+      left_inv := fun _ ↦ rfl
+      right_inv := fun p ↦ Prod.ext (by ext i; exact i.elim0)
+        (Prod.ext (by ext i; exact i.elim0) (Prod.ext (by ext i; exact i.elim0) rfl))
+      map_add' := fun x y ↦ Prod.ext (by ext i; exact i.elim0)
+        (Prod.ext (by ext i; exact i.elim0) (Prod.ext (by ext i; exact i.elim0) rfl)) }
+  refine ⟨{ realDim := 0, torusDim := 0, latticeRank := 0, finiteFactor := ZMod 2 × ZMod 2
+            equiv := { AddEquiv.toMultiplicative a with
+              continuous_toFun := continuous_of_discreteTopology
+              continuous_invFun := continuous_of_discreteTopology } }, ?_, ?_⟩
+  · change Fintype.card (ZMod 2 × ZMod 2) = 4
+    decide
+  · exact zmodTwoProd_not_isAddCyclic
 
 /-- A continuous homomorphism from a torus to a real vector group vanishes,
 since the multiples of a nonzero vector cannot all lie in a compact range. -/
