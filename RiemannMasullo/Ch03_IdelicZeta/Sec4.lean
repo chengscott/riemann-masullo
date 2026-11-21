@@ -1,0 +1,452 @@
+module
+
+public import RiemannMasullo.Ch03_IdelicZeta.Sec3
+public import RiemannMasullo.AppC_LCTVS.Sec5b
+public import RiemannMasullo.ForMathlib.Analysis.SpecialFunctions.Pow.Complex
+
+/-!
+# Eigendistributions and Weil's identity
+
+Masullo, §3.4, pp. 141–153. Page 154 is blank. The zeta integrals use the
+Tamagawa measures from Appendix A.
+-/
+
+@[expose] public noncomputable section
+
+open Bornology Filter Function IsDedekindDomain MeasureTheory NumberField Set
+open scoped NNReal NumberField.AdeleRing Topology UniformConvergenceCLM
+
+namespace RiemannMasullo
+
+set_option quotPrecheck false
+
+variable {F : Type*} [Field F] [NumberField F]
+
+local notation "V" => HeightOneSpectrum (𝓞 F)
+local notation "C₁" => (ideleClassNorm F).ker
+local notation "C_F" => IdeleClassGroup (𝓞 F) F
+local notation "X" => HeckeCharacter (𝓞 F) F
+local notation "I_F" => IdeleGroup (𝓞 F) F
+local notation "ℬ(" K ")" => SchwartzBruhat (Multiplicative K)
+local notation "classOf" => QuotientGroup.mk (s := IdeleGroup.principalSubgroup (𝓞 F) F)
+local notation "normℝ" => fun (g : C_F) ↦ ((ideleClassNorm F g : ℝ≥0) : ℝ)
+local notation "circleToComplex" => (⟨Circle.coeHom, continuous_subtype_val⟩ : Circle →ₜ* ℂ)
+local notation "finiteNorm(" v ")" =>
+  (Units.map nnNormHom.toMonoidHom : (HeightOneSpectrum.adicCompletion F v)ˣ →* ℝ≥0ˣ)
+local notation "infiniteNorm(" w ")" =>
+  ((Units.map nnNormHom.toMonoidHom) ^ InfinitePlace.mult w : (InfinitePlace.Completion w)ˣ →* ℝ≥0ˣ)
+
+section UnramifiedIdentity
+
+local notation "AArch" => SAdeleRing F (∅ : Finset V)
+local notation "μArch" => sMultiplicativeTamagawaMeasure F (∅ : Finset V)
+local notation "μv" => finiteLocalMultiplicativeTamagawaMeasure F
+local notation "valuation(" v ")" =>
+  (Valued.v : Valuation (HeightOneSpectrum.adicCompletion F v) (WithZero (Multiplicative ℤ)))
+local notation "positive" => relativeRightHalfPlane (ideleClassNorm F)
+  (isProperMap_ideleClassNorm F) (ideleClassNorm_ne_one (F := F)) 0
+
+-- Named, because an anonymous instance gets the same generated name in every file that declares
+-- it, and two such files can then not be imported together.
+local instance instMeasurableSpaceUnitsAdicCompletionSec4 (v : V) :
+    MeasurableSpace (v.adicCompletion F)ˣ := borel _
+
+/-- Paper: Equation (3.4.1.2), p. 143. The archimedean integral uses the
+restriction of the quasi-character along insertion of the archimedean ideles. -/
+def weilArchimedeanIntegral (fArch : ℬ(AArch)) (c : X) : ℂ :=
+  ∫ g : AArchˣ, fArch (Multiplicative.ofAdd g.val) *
+    c (classOf (sIdeleInsertion F ∅ g)) ∂μArch
+
+/-- Paper: Equation (3.4.1.2), p. 143. The integral at the bare norm is the
+integral of the test function weighted by the archimedean module. -/
+theorem weilArchimedeanIntegral_norm (fArch : ℬ(AArch)) :
+    weilArchimedeanIntegral fArch (ideleClassNormTwist 1 1) =
+      ∫ g : AArchˣ, fArch (Multiplicative.ofAdd g.val) *
+        (((sIdeleNorm F ∅ g : ℝ≥0) : ℝ) : ℂ) ∂μArch := by sorry
+
+/-- Paper: Theorem 3.4.1.1, p. 143. The archimedean integrand is absolutely
+integrable at each quasi-character of positive abscissa. -/
+theorem weilArchimedeanIntegral_integrable (fArch : ℬ(AArch)) (c : X) (hc : c ∈ positive) :
+    Integrable (fun g : AArchˣ ↦ fArch (Multiplicative.ofAdd g.val) *
+      c (classOf (sIdeleInsertion F ∅ g))) μArch := by sorry
+
+open Classical in
+/-- Paper: Equations (3.4.1.3)–(3.4.1.4), p. 143. At an unramified place,
+subtract the test function pulled back by inverse uniformizer multiplication
+before integrating. At a ramified place, integrate the original test function. -/
+def weilModifiedFiniteIntegral (v : V) (π : (v.adicCompletion F)ˣ)
+    (f : v.adicCompletion F → ℂ) (c : X) : ℂ :=
+  localIdelicZetaIntegral (μv v)
+    (if c.IsUnramifiedAt v then fun x ↦ f x - f ((↑π⁻¹ : v.adicCompletion F) * x) else f)
+    (finitePlaceRestriction F v c)
+
+open Classical in
+/-- Paper: Theorem 3.4.1.1, pp. 143–144. The finite-place integrals of the
+modified compact-open indicators are absolutely convergent at positive abscissa. -/
+theorem weilModifiedFiniteIntegral_integrable (v : V) (π : (v.adicCompletion F)ˣ)
+    (hπ : (valuation(v)).IsUniformizer π.val) (K : Set (v.adicCompletion F))
+    (hK : IsCompact K) (hKo : IsOpen K) (c : X) (hc : c ∈ positive) :
+    let f := K.indicator (fun _ ↦ (1 : ℂ))
+    let test := if c.IsUnramifiedAt v then fun x ↦ f x - f ((↑π⁻¹ : v.adicCompletion F) * x)
+      else f
+    Integrable (fun g : (v.adicCompletion F)ˣ ↦ test g.val * finitePlaceRestriction F v c g)
+      (μv v) := by
+  sorry
+
+/-- Paper: Theorem 3.4.1.1, p. 144. At an unramified place the modified
+integer-ring indicator integrates to the Tamagawa mass of the integer units. -/
+theorem weilModifiedFiniteIntegral_integerRing (v : V) (π : (v.adicCompletion F)ˣ)
+    (hπ : (valuation(v)).IsUniformizer π.val) (c : X)
+    (hc : c.IsUnramifiedAt v) :
+    weilModifiedFiniteIntegral v π
+        ((v.adicCompletionIntegers F : Set (v.adicCompletion F)).indicator (fun _ ↦ 1)) c =
+      ((μv v) (v.adicCompletionIntegers F).units).toReal := by sorry
+
+/-- Paper: Equation (3.4.1.1), p. 143. The modified zeta function is the
+archimedean integral times the product of the modified finite integrals. -/
+def weilModifiedZeta (fArch : ℬ(AArch)) (K : (v : V) → Set (v.adicCompletion F))
+    (uniformizer : (v : V) → (v.adicCompletion F)ˣ) (c : X) : ℂ :=
+  weilArchimedeanIntegral fArch c *
+    (∏' v : V, weilModifiedFiniteIntegral v (uniformizer v) ((K v).indicator (fun _ ↦ 1)) c)
+
+/-- Paper: Theorem 3.4.1.1, pp. 143–144. When the character is unramified
+at every finite place and every local test is the integer-ring indicator,
+the finite product contributes the product of integer-unit masses. -/
+theorem weilModifiedZeta_integerRings (fArch : ℬ(AArch))
+    (K : (v : V) → Set (v.adicCompletion F))
+    (uniformizer : (v : V) → (v.adicCompletion F)ˣ)
+    (hπ : ∀ v : V, (valuation(v)).IsUniformizer (uniformizer v).val)
+    (hK : ∀ v : V, K v = v.adicCompletionIntegers F) (c : X)
+    (hc : ∀ v, c.IsUnramifiedAt v) :
+    weilModifiedZeta fArch K uniformizer c = weilArchimedeanIntegral fArch c *
+      ∏ᶠ v : V, (((μv v) (v.adicCompletionIntegers F).units).toReal : ℂ) := by sorry
+
+/-- Paper: Theorem 3.4.1.1, p. 143. The finite-place factors of the modified
+zeta product differ from one by an absolutely summable family. -/
+theorem weilModifiedZeta_summable
+    (K : (v : V) → Set (v.adicCompletion F))
+    (uniformizer : (v : V) → (v.adicCompletion F)ˣ)
+    (hπ : ∀ v : V, (valuation(v)).IsUniformizer (uniformizer v).val)
+    (hKc : ∀ v : V, IsCompact (K v)) (hKo : ∀ v : V, IsOpen (K v))
+    (hK : ∀ᶠ v in cofinite, K v = v.adicCompletionIntegers F) (c : X) (hc : c ∈ positive) :
+    Summable (fun v : V ↦
+      ‖weilModifiedFiniteIntegral v (uniformizer v) ((K v).indicator (fun _ ↦ 1)) c - 1‖) := by sorry
+
+/-- Paper: Theorem 3.4.1.1, p. 143. The net of partial modified products
+converges uniformly on compact sets of quasi-characters of positive abscissa. -/
+theorem weilModifiedZeta_tendstoUniformlyOn (fArch : ℬ(AArch))
+    (K : (v : V) → Set (v.adicCompletion F))
+    (uniformizer : (v : V) → (v.adicCompletion F)ˣ)
+    (hπ : ∀ v : V, (valuation(v)).IsUniformizer (uniformizer v).val)
+    (hKc : ∀ v : V, IsCompact (K v)) (hKo : ∀ v : V, IsOpen (K v))
+    (hK : ∀ᶠ v in cofinite, K v = v.adicCompletionIntegers F)
+    (L : Set X) (hL : IsCompact L) (hLpos : L ⊆ positive) :
+    TendstoUniformlyOn (fun S : Finset V ↦ fun c ↦
+      weilArchimedeanIntegral fArch c *
+        ∏ v ∈ S, weilModifiedFiniteIntegral v (uniformizer v) ((K v).indicator (fun _ ↦ 1)) c)
+      (weilModifiedZeta fArch K uniformizer) atTop L := by sorry
+
+/-- Paper: Theorem 3.4.1.1, p. 143. The modified zeta product is holomorphic
+on the positive half-plane in each unitary norm-twist coordinate. -/
+theorem weilModifiedZeta_analyticOn (fArch : ℬ(AArch))
+    (K : (v : V) → Set (v.adicCompletion F))
+    (uniformizer : (v : V) → (v.adicCompletion F)ˣ)
+    (hπ : ∀ v : V, (valuation(v)).IsUniformizer (uniformizer v).val)
+    (hKc : ∀ v : V, IsCompact (K v)) (hKo : ∀ v : V, IsOpen (K v))
+    (hK : ∀ᶠ v in cofinite, K v = v.adicCompletionIntegers F) (χ : PontryaginDual C_F) :
+    AnalyticOnNhd ℂ (fun s ↦ weilModifiedZeta fArch K uniformizer (ideleClassNormTwist χ s))
+      (Complex.re ⁻¹' Ioi 0) := by sorry
+
+-- TODO(paper-gap): Equation (3.4.1.5) omits the integer-unit masses outside S.
+-- Equation (3.4.1.6) omits the corresponding Tamagawa factor and asserts
+-- holomorphy across the possible pole at s = 1. See the issue report.
+
+end UnramifiedIdentity
+
+section Applications
+
+/-- Paper: Proposition 3.4.2.1, p. 145. The relative line of abscissa one
+contains the full line on nontrivial components and omits an open interval
+around the bare norm character on the trivial component. -/
+def relativeOneLine (A : ℝ) : Set X :=
+  {c | quasiCharacterAbscissa (ideleClassNorm F) (isProperMap_ideleClassNorm F)
+    (ideleClassNorm_ne_one (F := F)) c = 1 ∧ normOneRestriction (ideleClassNorm F) c ≠ 1} ∪
+    {c | ∃ x : ℝ, x ∉ Ioo (-A) A ∧
+      c = ideleClassNormTwist 1 (1 + (x : ℂ) * Complex.I)}
+
+/-- Paper: Proposition 3.4.2.1, p. 145. A bare norm twist on the one-line
+belongs to the displayed set exactly outside the open interval of excluded ordinates. -/
+theorem normTwist_mem_relativeOneLine (A x : ℝ) :
+    ideleClassNormTwist (1 : PontryaginDual C_F) (1 + (x : ℂ) * Complex.I) ∈
+      relativeOneLine A ↔ x ∉ Ioo (-A) A := by sorry
+
+-- TODO(paper-gap): Proposition 3.4.2.1 asserts Lebesgue integrability on the
+-- relative one-line. The standard test function over ℚ gives absolute divergence.
+
+open Classical in
+/-- Paper: Equation (3.4.2.6), p. 146. For the trivial norm-one character
+the cutoff is the indicator of norm at most one. For other characters it vanishes. -/
+def thetaPolarCutoff (ω : PontryaginDual C₁) (g : C_F) : ℂ :=
+  if ω = 1 ∧ normℝ g ≤ 1 then 1 else 0
+
+/-- Paper: Equation (3.4.2.6), p. 146. The trivial-character cutoff equals
+one at the identity class. -/
+theorem thetaPolarCutoff_one : thetaPolarCutoff (1 : PontryaginDual C₁) 1 = 1 := by sorry
+
+/-- Paper: Theorem 3.4.2.2(1), p. 146. At large norm homogeneous theta
+decays to every inverse power, uniformly over a bounded set of test functions. -/
+theorem weilTheta_decay_large (ω : PontryaginDual C₁)
+    (B : Set ℬ(𝔸[F])) (hB : IsVonNBounded ℂ B) (N : ℕ) :
+    ∃ C T : ℝ, 0 < C ∧ 0 < T ∧ ∀ f ∈ B, ∀ g : C_F, T < normℝ g →
+      ‖homogeneousAdelicTheta ω f g‖ ≤ C * ((normℝ g) ^ N)⁻¹ := by sorry
+
+-- TODO(paper-gap): Equation (3.4.2.4) drops the norm-one class volume
+-- included in Theorem 2.2.5.4 and in Equations (3.4.2.9)–(3.4.2.10).
+
+/-- Paper: Theorem 3.4.2.2(2), p. 146. At small norm homogeneous theta
+minus the cutoff polar term decays to every power, uniformly over bounded sets.
+Deviation: The polar coefficient includes the norm-one Tamagawa volume as in
+Theorem 2.2.5.4 and Equation (3.4.2.10). -/
+theorem weilTheta_decay_small (ω : PontryaginDual C₁)
+    (B : Set ℬ(𝔸[F])) (hB : IsVonNBounded ℂ B) (N : ℕ) :
+    ∃ C T : ℝ, 0 < C ∧ 0 < T ∧ ∀ f ∈ B, ∀ g : C_F, normℝ g < T →
+      let zeroAdele := Multiplicative.ofAdd (0 : 𝔸[F])
+      let polar := (normℝ g)⁻¹ • adeleSchwartzFourier f zeroAdele - f zeroAdele
+      ‖homogeneousAdelicTheta ω f g -
+        (normOneIdeleClassTamagawaMeasure F univ).toReal • (thetaPolarCutoff ω g * polar)‖ ≤
+        C * (normℝ g) ^ N := by sorry
+
+-- TODO(paper-gap): Equation (3.4.2.7) counts each modified finite factor
+-- twice. The line below it also divides by the local Euler denominator,
+-- while the definition (3.4.1.3) multiplies by that denominator.
+
+end Applications
+
+section Eigendistributions
+
+variable {R : Type*} [CommRing R] [TopologicalSpace R] [IsTopologicalRing R]
+
+local notation "trans" => fun (g : Rˣ) (f : ℬ(R)) ↦ schwartzBruhatUnitTranslate g⁻¹ f
+
+local notation "isEigen(" c "," T ")" => (∀ g : Rˣ, ∀ f : ℬ(R), (T) ((trans) g f) = (c) g * (T) f)
+
+/-- Paper: Definition 3.4.3.1, p. 151. The weight condition is preserved
+by zero, addition and complex scalar multiplication. -/
+theorem schwartzBruhatEigen_submodule (c : QuasiCharacter Rˣ) :
+    isEigen(c, (0 : StrongDual ℂ ℬ(R))) ∧
+      (∀ T U : StrongDual ℂ ℬ(R), isEigen(c, T) → isEigen(c, U) → isEigen(c, T + U)) ∧
+      (∀ (a : ℂ) (T : StrongDual ℂ ℬ(R)), isEigen(c, T) → isEigen(c, a • T)) := by sorry
+
+/-- Paper: Definition 3.4.3.1(1)–(2), p. 151. The eigendistributions
+are the continuous functionals for which pullback by multiplication by
+a unit acts by the prescribed weight. The global case uses the
+quasi-character pulled back to the ideles. -/
+def schwartzBruhatEigendistributions (c : QuasiCharacter Rˣ) : Submodule ℂ (StrongDual ℂ ℬ(R)) where
+  carrier := {T | isEigen(c, T)}
+  zero_mem' := (schwartzBruhatEigen_submodule c).1
+  add_mem' := (schwartzBruhatEigen_submodule c).2.1 _ _
+  smul_mem' a := (schwartzBruhatEigen_submodule c).2.2 a _
+
+/-- Paper: Definition 3.4.3.1(1)–(2), p. 151. Evaluation at zero belongs
+to the weight-one subspace, since unit multiplication fixes zero. -/
+theorem schwartzBruhatEigendistributions_zeroEval :
+    ∃ T : StrongDual ℂ ℬ(R), T ∈ schwartzBruhatEigendistributions (1 : QuasiCharacter Rˣ) ∧
+      ∀ f : ℬ(R), T f = f (Multiplicative.ofAdd 0) := by sorry
+
+/-- Paper: Definition 3.4.3.1(1)–(2), p. 151. The weight subspace is
+closed in the strong topology of the continuous dual. -/
+theorem schwartzBruhatEigendistributions_isClosed (c : QuasiCharacter Rˣ) :
+    IsClosed (schwartzBruhatEigendistributions c : Set (StrongDual ℂ ℬ(R))) := by sorry
+
+end Eigendistributions
+
+/-- Paper: Definition 3.4.3.1(2), p. 151. The global weight subspace uses the
+pullback of the quasi-character from the idele classes to the ideles. -/
+def adelicEigendistributions (c : X) : Submodule ℂ (StrongDual ℂ ℬ(𝔸[F])) :=
+  schwartzBruhatEigendistributions
+    (c.comp ⟨QuotientGroup.mk' _, continuous_quotient_mk'⟩ : QuasiCharacter I_F)
+
+/-- Paper: Definition 3.4.3.1(2), p. 151. At global weight one,
+evaluation at the zero adele is an eigendistribution. -/
+theorem adelicEigendistributions_zeroEval :
+    ∃ T : StrongDual ℂ ℬ(𝔸[F]), T ∈ adelicEigendistributions (1 : X) ∧
+      ∀ f : ℬ(𝔸[F]), T f = f (Multiplicative.ofAdd 0) := by sorry
+
+section Gaussians
+
+local notation "realCoord(" h ")" => InfinitePlace.Completion.ringEquivRealOfIsReal h
+local notation "complexCoord(" h ")" => InfinitePlace.Completion.ringEquivComplexOfIsComplex h
+
+open Classical in
+/-- Paper: Definition 3.4.3.2(1)–(2), p. 152. The local real Gaussian is
+even or odd according to the character on signs. The complex Gaussian
+uses the angular exponent, with conjugation for a negative exponent.
+Deviation: Only the sign and angular restrictions enter the formulas. -/
+def infiniteStandardGaussianValue (w : InfinitePlace F)
+    (χ : PontryaginDual w.Completionˣ) (x : w.Completion) : ℂ :=
+  if h : w.IsReal then
+    let y := realCoord(h) x
+    let parity := if χ (-1) = 1 then (1 : ℝ) else y
+    (parity * Real.exp (-Real.pi * y ^ 2) : ℝ)
+  else
+    let e := complexCoord(InfinitePlace.not_isReal_iff_isComplex.mp h)
+    let c : ℂˣ →ₜ* ℂ :=
+      (circleToComplex).comp (χ.comp ⟨Units.map e.symm.toMonoidHom,
+        (InfinitePlace.Completion.isometryEquivComplexOfIsComplex
+          (InfinitePlace.not_isReal_iff_isComplex.mp h)).symm.continuous.units_map _⟩)
+    let m := (existsUnique_complexUnits_character_parameters c
+      (fun _ ↦ Circle.norm_coe _)).exists.choose.2
+    let z := e x
+    let monomial := if 0 ≤ m then z ^ m.natAbs else (star z) ^ m.natAbs
+    monomial * Complex.exp (-2 * (Real.pi : ℂ) * z * star z) / (2 * (Real.pi : ℂ))
+
+/-- Paper: Definition 3.4.3.2(1)–(2), p. 152. The real and complex
+Gaussian formulas give Schwartz–Bruhat test functions on the completion. -/
+theorem infiniteStandardGaussian_mem (w : InfinitePlace F) (χ : PontryaginDual w.Completionˣ) :
+    (fun x : Multiplicative w.Completion ↦ infiniteStandardGaussianValue w χ x.toAdd) ∈
+      schwartzBruhatSubmodule (Multiplicative w.Completion) := by sorry
+
+/-- Paper: Definition 3.4.3.2(1)–(2), p. 152. The standard infinite-place
+test function is the Gaussian of the sign or angular weight. -/
+def infiniteStandardGaussian (w : InfinitePlace F) (χ : PontryaginDual w.Completionˣ) :
+    ℬ(w.Completion) :=
+  ⟨fun x ↦ infiniteStandardGaussianValue w χ x.toAdd, infiniteStandardGaussian_mem w χ⟩
+
+open Classical in
+/-- Paper: Equations (3.4.3.3) and (3.4.3.5), p. 152. At zero and weight
+one, the real Gaussian equals one and the complex Gaussian equals one over two pi. -/
+theorem infiniteStandardGaussian_trivial_zero (w : InfinitePlace F) :
+    infiniteStandardGaussian w 1 (Multiplicative.ofAdd 0) =
+      if w.IsReal then 1 else (2 * (Real.pi : ℂ))⁻¹ := by sorry
+
+local notation "integerUnits(" v ")" => ((HeightOneSpectrum.adicCompletionIntegers F v).units)
+local notation "unramified(" v "," c ")" => (∀ u ∈ integerUnits(v), c u = (1 : ℂ))
+
+open Classical in
+/-- Paper: Definition 3.4.3.2(3), p. 152. The finite Gaussian is the
+integer-ring indicator for unramified weights. For ramified weights it
+is the inverse quasi-character on the integer units, extended by zero. -/
+def finiteStandardGaussianValue (v : V) (c : QuasiCharacter (v.adicCompletion F)ˣ)
+    (x : v.adicCompletion F) : ℂ :=
+  if unramified(v, c) then
+    (v.adicCompletionIntegers F : Set (v.adicCompletion F)).indicator (fun _ ↦ 1) x
+  else
+    (Units.val '' integerUnits(v)).indicator
+      (fun y ↦ if hy : y ≠ 0 then (c (Units.mk0 y hy))⁻¹ else 0) x
+
+/-- Paper: Definition 3.4.3.2(3), p. 152. Both finite Gaussian formulas
+give Schwartz–Bruhat test functions on the completion. -/
+theorem finiteStandardGaussian_mem (v : V) (c : QuasiCharacter (v.adicCompletion F)ˣ) :
+    (fun x : Multiplicative (v.adicCompletion F) ↦ finiteStandardGaussianValue v c x.toAdd) ∈
+      schwartzBruhatSubmodule (Multiplicative (v.adicCompletion F)) := by sorry
+
+/-- Paper: Definition 3.4.3.2(3), p. 152. The finite-place standard
+Gaussian is the bundled test function given by the local indicator formula. -/
+def finiteStandardGaussian (v : V) (c : QuasiCharacter (v.adicCompletion F)ˣ) :
+    ℬ(v.adicCompletion F) :=
+  ⟨fun x ↦ finiteStandardGaussianValue v c x.toAdd, finiteStandardGaussian_mem v c⟩
+
+/-- Paper: Equations (3.4.3.7)–(3.4.3.8), p. 152. On an integer unit,
+the local Gaussian takes the reciprocal of the character value. -/
+theorem finiteStandardGaussian_integerUnit (v : V) (c : QuasiCharacter (v.adicCompletion F)ˣ)
+    (u : (v.adicCompletion F)ˣ) (hu : u ∈ integerUnits(v)) :
+    finiteStandardGaussian v c (Multiplicative.ofAdd u.val) = (c u)⁻¹ := by sorry
+
+local notation "globalGaussianTest(" χ ")" => fun x : Multiplicative 𝔸[F] ↦
+  (∏ w : InfinitePlace F,
+    infiniteStandardGaussian w ((χ).comp ⟨IdeleClassGroup.ofCompletion (𝓞 F) F w,
+      continuous_ideleClass_ofCompletion F w⟩) (Multiplicative.ofAdd (x.toAdd.1 w))) *
+    ∏ᶠ v : V, finiteStandardGaussian v (finitePlaceRestriction F v (ideleClassNormTwist (χ) 0))
+      (Multiplicative.ofAdd (x.toAdd.2 v))
+
+/-- Paper: Equation (3.4.3.9), p. 152. The restricted product of local
+Gaussians is Schwartz–Bruhat on the adeles. -/
+theorem adelicStandardGaussian_mem (χ : PontryaginDual C_F) :
+    globalGaussianTest(χ) ∈ schwartzBruhatSubmodule (Multiplicative 𝔸[F]) := by sorry
+
+/-- Paper: Equation (3.4.3.9), p. 152. The adelic Gaussian is the pointwise
+restricted product of the indicated local Gaussians.
+Deviation: A unitary representative of the norm-one component is used. -/
+def adelicStandardGaussian (χ : PontryaginDual C_F) : ℬ(𝔸[F]) :=
+  ⟨globalGaussianTest(χ), adelicStandardGaussian_mem χ⟩
+
+/-- Paper: Equation (3.4.3.9), p. 152. The trivial-character Gaussian
+at the zero adele has one factor of one over two pi per complex place. -/
+theorem adelicStandardGaussian_trivial_zero :
+    adelicStandardGaussian (1 : PontryaginDual C_F) (Multiplicative.ofAdd 0) =
+      (2 * (Real.pi : ℂ))⁻¹ ^ InfinitePlace.nrComplexPlaces F := by sorry
+
+/-- Paper: Definition 3.4.3.2, p. 152. The adelic Gaussian depends only on
+the restriction of the unitary representative to the norm-one classes. -/
+theorem adelicStandardGaussian_eq_of_restriction (χ ψ : PontryaginDual C_F)
+    (h : normOneRestriction (ideleClassNorm F) (ideleClassNormTwist χ 0) =
+      normOneRestriction (ideleClassNorm F) (ideleClassNormTwist ψ 0)) :
+    adelicStandardGaussian χ = adelicStandardGaussian ψ := by sorry
+
+-- TODO(paper-gap): With the complex Gaussians as printed, the local zeta
+-- integral vanishes in nonzero angular weight. This affects the identification
+-- of the Gaussian zeta family with the completed Euler product of §3.2.
+
+/-- Paper: Paragraph after Equation (3.4.3.9), p. 152.
+The completed function with the Gaussian normalization is the continued
+global zeta function of the standard Gaussian on the chosen component.
+Deviation: This definition keeps the specified Gaussian and Tamagawa measure.
+The resulting normalization can differ from the completed Euler product of §3.2. -/
+def gaussianCompletedHeckeL (χ : PontryaginDual C_F) (s : ℂ) : ℂ :=
+  globalIdelicZFunction (adelicStandardGaussian χ) (ideleClassNormTwist χ s)
+
+/-- Paper: Paragraph after Equation (3.4.3.9), p. 152.
+In the half-plane of absolute convergence, the Gaussian normalization
+is the global zeta integral of the Gaussian. -/
+theorem gaussianCompletedHeckeL_eq_integral (χ : PontryaginDual C_F) (s : ℂ)
+    (hs : 1 < s.re) :
+    gaussianCompletedHeckeL χ s =
+      globalIdelicZetaIntegral (adelicStandardGaussian χ) (ideleClassNormTwist χ s) := by sorry
+
+/-- Paper: Theorem 3.4.3.3(1), pp. 152–153. At a finite place each
+quasi-character has a one-dimensional eigendistribution space. -/
+theorem finiteEigendistributions_rank (v : V) (c : QuasiCharacter (v.adicCompletion F)ˣ) :
+    Module.rank ℂ (schwartzBruhatEigendistributions c) = 1 := by sorry
+
+/-- Paper: Theorem 3.4.3.3(1), pp. 152–153. At an infinite place each
+quasi-character has a one-dimensional eigendistribution space. -/
+theorem infiniteEigendistributions_rank (w : InfinitePlace F) (c : QuasiCharacter w.Completionˣ) :
+    Module.rank ℂ (schwartzBruhatEigendistributions c) = 1 := by sorry
+
+/-- Paper: Theorem 3.4.3.3(1), p. 153. At an unramified finite place the
+unique normalized eigendistribution evaluates to one on the integer-ring
+indicator. These distributions vary holomorphically in norm-twist coordinates. -/
+theorem finiteEigendistribution_unramified (v : V) (χ : PontryaginDual (v.adicCompletion F)ˣ)
+    (hχ : unramified(v, (circleToComplex).comp χ)) :
+    let twist := quasiCharacterNormTwist (finiteNorm(v)) (continuous_finiteLocalModule v)
+      ((circleToComplex).comp χ)
+    ∃ D : ℂ → StrongDual ℂ ℬ(v.adicCompletion F), VectorHolomorphicOn D univ ∧
+      ∀ s : ℂ, ∀ T : StrongDual ℂ ℬ(v.adicCompletion F),
+        T = D s ↔ T ∈ schwartzBruhatEigendistributions (twist s) ∧
+          T (finiteStandardGaussian v (twist s)) = 1 := by sorry
+
+/-- Paper: Theorem 3.4.3.3(1), p. 153. At an infinite place the normalized
+eigendistribution evaluates to one on the Gaussian of the corresponding
+angular or sign weight, and varies holomorphically in norm-twist coordinates. -/
+theorem infiniteEigendistribution_normalized (w : InfinitePlace F)
+    (χ : PontryaginDual w.Completionˣ) :
+    let twist := quasiCharacterNormTwist (infiniteNorm(w)) (continuous_infiniteLocalModule w)
+      ((circleToComplex).comp χ)
+    ∃ D : ℂ → StrongDual ℂ ℬ(w.Completion), VectorHolomorphicOn D univ ∧
+      ∀ s : ℂ, ∀ T : StrongDual ℂ ℬ(w.Completion),
+        T = D s ↔ T ∈ schwartzBruhatEigendistributions (twist s) ∧
+          T (infiniteStandardGaussian w χ) = 1 := by sorry
+
+-- TODO(paper-gap): Equation (3.4.3.11) fails for ramified unit characters
+-- of order greater than two. The zeta integral transforms by c⁻¹ under
+-- the pullback in Definition 3.4.3.1, contrary to Equations (3.4.3.13)
+-- and (3.4.3.15). The normalized tensor in (3.4.3.14) uses (3.4.3.11).
+
+/-- Paper: Theorem 3.4.3.3(2), p. 153. The global eigendistributions of
+each idelic weight form a one-dimensional space. -/
+theorem adelicEigendistributions_rank (c : X) :
+    Module.rank ℂ (adelicEigendistributions c) = 1 := by sorry
+
+end Gaussians
+
+end RiemannMasullo
