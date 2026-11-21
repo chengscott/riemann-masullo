@@ -285,7 +285,7 @@ theorem modulatedQuotientIsotypicProjector_range (ω : PontryaginDual K) :
 
 /-- Paper: Notation 4.5.1.1, p. 204. The normalized quotient projector is idempotent. -/
 theorem modulatedQuotientIsotypicProjector_idempotent (ω : PontryaginDual K) :
-    (Ψ[ω]).comp Ψ[ω] = Ψ[ω] := by sorry
+    (Ψ[ω]).comp Ψ[ω] = Ψ[ω] := ContinuousLinearMap.ext fun f ↦ modulatedQuotientIsotypicProjector_fix m γ hm hγ μ₁ ω ⟨Ψ[ω] f, Eq.mp (congrArg (fun T ↦ Ψ[ω] f ∈ T) (modulatedQuotientIsotypicProjector_range m γ hm hγ μ₁ ω)) (LinearMap.mem_range_self _ f)⟩
 
 variable (χ : PontryaginDual m.toMonoidHom.ker → PontryaginDual G)
 variable (t₀ : PontryaginDual m.toMonoidHom.ker → ℝ)
