@@ -415,7 +415,8 @@ def logContDiffZeroNorm (m : ℕ) (f : {f : ℝ → ℂ // MemLogContDiffZero m 
 supremum of the absolute value on the positive reals.
 Deviation: Sanity check for the logarithmic norm. -/
 theorem logContDiffZeroNorm_zero (f : {f : ℝ → ℂ // MemLogContDiffZero 0 f}) :
-    logContDiffZeroNorm 0 f = sSup (range fun x : ℝ ↦ ‖f.val x‖) := by sorry
+    logContDiffZeroNorm 0 f = sSup (range fun x : ℝ ↦ ‖f.val x‖) := by
+  simp [logContDiffZeroNorm]
 
 -- TODO(paper-gap): In the proof of Proposition B.2.1.8, the integrals in dτ
 -- need the factor 1/(2π). The boundary term of (B.2.1.22) uses f, since it
