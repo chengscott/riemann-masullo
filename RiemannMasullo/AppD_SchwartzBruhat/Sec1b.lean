@@ -1284,7 +1284,49 @@ theorem lca_openSubgroup_quotient_elementary (J : OpenCompactlyGeneratedSubgroup
     (H : OpenCompactlyGeneratedSubgroups (PontryaginDual G))
     (_h : lcaDualAnnihilator H.val ≤ J.val) :
     Nonempty (ElementaryLCAPresentation (J.val ⧸ (lcaDualAnnihilator H.val).comap J.val.subtype)) := by
-  sorry
+  let N := (lcaDualAnnihilator H.val).comap J.val.subtype
+  let : LocallyCompactSpace J.val :=
+    J.property.1.isOpenEmbedding_subtypeVal.locallyCompactSpace
+  let : LocallyCompactSpace H.val :=
+    H.property.1.isOpenEmbedding_subtypeVal.locallyCompactSpace
+  let ι : H.val →ₜ* PontryaginDual G :=
+    ⟨H.val.subtype, continuous_subtype_val⟩
+  let f : J.val →ₜ* PontryaginDual H.val :=
+    (PontryaginDual.map ι).comp
+      (pontryaginDual_eval.comp
+        ⟨J.val.subtype, continuous_subtype_val⟩)
+  have hker : f.toMonoidHom.ker = N := by
+    ext x
+    rw [MonoidHom.mem_ker, Subgroup.mem_comap, Subgroup.coe_subtype,
+      mem_lcaDualAnnihilator_iff]
+    exact
+      ⟨fun hx χ ↦ congrArg (fun ψ : PontryaginDual H.val ↦ ψ χ) hx,
+        fun hx ↦ PontryaginDual.ext hx⟩
+  have hN : IsClosed (N : Set J.val) := by
+    rw [← hker]
+    exact isClosed_eq f.continuous continuous_const
+  let : T1Space (J.val ⧸ N) :=
+    QuotientGroup.t1Space_iff.mpr hN
+  refine lca_elementary_iff.mp
+    ⟨isCompactlyGeneratedGroup_quotient J.property.2 N hN, ?_⟩
+  let e : (J.val ⧸ N) →ₜ* PontryaginDual H.val :=
+    ⟨QuotientGroup.lift N f.toMonoidHom hker.ge,
+      (QuotientGroup.isQuotientMap_mk N).continuous_iff.mpr
+        f.continuous⟩
+  have he : Function.Injective e :=
+    (QuotientGroup.injective_lift_iff N f.toMonoidHom hker.ge).mpr
+      hker.symm
+  obtain ⟨W, hW, hPow⟩ := exists_nhds_one_of_isLocallyEuclidean
+    (isCompactlyGeneratedGroup_iff_dual_locallyEuclidean.mp
+      H.property.2)
+  have hW' : W ∈ 𝓝 (e 1) := by
+    rwa [map_one]
+  refine isLocallyEuclidean_of_noSmallCyclicSubgroups
+    (e.continuous.continuousAt.preimage_mem_nhds hW') ?_
+  intro x hx
+  apply he
+  rw [map_one]
+  exact hPow (e x) fun n ↦ map_pow e x n ▸ hx n
 
 /-- Paper: Lemma D.1.4.7, p. 760. Each open compactly generated subgroup is the
 inverse limit of its quotients by the annihilators it contains.
